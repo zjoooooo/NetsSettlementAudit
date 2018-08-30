@@ -67,8 +67,16 @@ namespace NetsSettlementAudit
             {
                 Ismanual = true;
             }
-        }
 
+            //string carpark = "CENDEXDB";
+            //string ip = "192.168.12.4";
+            //string start_date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
+            //string end_date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
+            //StoredProcedureSpProcessConsolidated(carpark, ip, start_date, end_date);
+            //StoredProcedureSjAddCashCardCollection(carpark, ip, start_date, end_date);
+            //StoredProcedureSjAddLTACollection(carpark, ip, start_date, end_date);
+            //Application.Exit();
+        }
         private void button1_Click(object sender, EventArgs e)
         {
             InitCarparkList();
@@ -92,13 +100,14 @@ namespace NetsSettlementAudit
             }
             else if (batchname.Equals("All"))
             {
-                 CommandText = @"select name,ip,batch from Whole where valid=1";
+                 CommandText = $"select name,ip,batch from Whole where valid=1";
             }
             else
             {
                  CommandText = $"select name,ip,batch from Whole where valid=1 and batch='{batchname}'";
             }
             string constr = "Data Source=172.16.1.89;uid=secure;pwd=weishenme;database=carpark";
+
             //LogClass.WriteLog($"cmd={CommandText}");
             //string CommandText = @"select name,ip,batch from Whole where valid=1";
             //string CommandText = @"select name,ip,batch from Whole where valid=1 and batch='JE'";
@@ -167,7 +176,6 @@ namespace NetsSettlementAudit
             }
             return list;
         }
-
         private static string GetValue(string strkey)
         {
 
@@ -181,7 +189,6 @@ namespace NetsSettlementAudit
             return "";
 
         }
-
         private void SendEmail(string sub, string body, string address)
         {
             // Command line argument must the the SMTP host.
@@ -273,6 +280,109 @@ namespace NetsSettlementAudit
                 return;
             }
         }
+
+        //Process Nets and LTA Consolidated Report
+        private bool StoredProcedureSpProcessConsolidated(string capark, string ip, string DateFrom, string DateTo)
+        {
+            SqlConnection connection = new SqlConnection($"Initial Catalog={capark};data source={ip},1433;user id=sa; password=yzhh2007; Network Library=DBMSSOCN;");
+            try
+            {
+                SqlCommand command = new SqlCommand
+                {
+                    CommandText = "sp_processconsolidated",
+                    CommandType = CommandType.StoredProcedure
+                };
+                SqlParameter parameter = command.Parameters.Add("@datefrom", SqlDbType.VarChar, 15);
+                SqlParameter parameter2 = command.Parameters.Add("@dateto", SqlDbType.VarChar, 15);
+                SqlParameter parameter3 = command.Parameters.Add("@option", SqlDbType.SmallInt, 15);
+                parameter.Value = DateFrom;
+                parameter2.Value = DateTo;
+                parameter3.Value = 2;
+                command.Connection = connection;
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+                command.ExecuteNonQuery();
+                LogClass.WriteLog("Process consolidated report ok.");
+                command = null;
+                connection.Close();
+            }
+            catch (Exception e1)
+            {
+                LogClass.WriteLog($"find error to process consolidated report,{e1.ToString()}");
+            }
+            return true;
+        }
+
+
+        //Add CashCarsh Report.
+        private bool StoredProcedureSjAddCashCardCollection(string capark, string ip, string DateFrom, string DateTo)
+        {
+            SqlConnection connection = new SqlConnection($"Initial Catalog={capark};data source={ip},1433;user id=sa; password=yzhh2007; Network Library=DBMSSOCN;");
+            try
+            {
+                SqlCommand command = new SqlCommand {
+                    CommandText = "sj_AddCashcardCollection",
+                    CommandType = CommandType.StoredProcedure
+                };
+                SqlParameter parameter = command.Parameters.Add("@datefrom", SqlDbType.VarChar, 15);
+                SqlParameter parameter2 = command.Parameters.Add("@dateto", SqlDbType.VarChar, 15);
+                SqlParameter parameter3 = command.Parameters.Add("@type", SqlDbType.SmallInt, 15);
+                parameter.Value = DateFrom;
+                parameter2.Value = DateTo;
+                parameter3.Value = 10;
+                command.Connection = connection;
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+                command.ExecuteNonQuery();
+                LogClass.WriteLog("Process cashcard report ok.");
+                command = null;
+                connection.Close();
+            }
+            catch (Exception e1)
+            {
+                LogClass.WriteLog($"find error to process cashcard report,{e1.ToString()}");
+            }
+            return true;
+        }
+
+        //Add LTA Report.
+        private bool StoredProcedureSjAddLTACollection(string capark,string ip,string DateFrom, string DateTo)
+        {
+            SqlConnection connection = new SqlConnection($"Initial Catalog={capark};data source={ip},1433;user id=sa; password=yzhh2007; Network Library=DBMSSOCN;");
+            try
+            {
+                SqlCommand command = new SqlCommand
+                {
+                    CommandText = "sj_AddLTACollection",
+                    CommandType = CommandType.StoredProcedure
+                };
+                SqlParameter parameter = command.Parameters.Add("@datefrom", SqlDbType.VarChar, 15);
+                SqlParameter parameter2 = command.Parameters.Add("@dateto", SqlDbType.VarChar, 15);
+                SqlParameter parameter3 = command.Parameters.Add("@type", SqlDbType.SmallInt, 15);
+                parameter.Value = DateFrom;
+                parameter2.Value = DateTo;
+                parameter3.Value = 10;
+                command.Connection = connection;
+                if (connection.State == ConnectionState.Closed)
+                {
+                    connection.Open();
+                }
+                command.ExecuteNonQuery();
+                LogClass.WriteLog("Process LTA report ok.");
+                command = null;
+                connection.Close();
+            }
+            catch (Exception e1)
+            {
+                LogClass.WriteLog($"find error to process LTA report,{e1.ToString()}");
+            }
+            return true;
+        }
+       
         private void ReadDataFromPMS()
         {
             SettleFileBatch.Clear();
@@ -283,6 +393,10 @@ namespace NetsSettlementAudit
             foreach (KeyValuePair<string, string> kv in carparklist)
             {
                 LogClass.WriteLog($"=========={kv.Key}==========");
+                string date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
+                StoredProcedureSpProcessConsolidated(kv.Key, kv.Value, date, date);
+                StoredProcedureSjAddCashCardCollection(kv.Key, kv.Value, date, date);
+                StoredProcedureSjAddLTACollection(kv.Key, kv.Value, date, date);
                 string constr = $"Data Source={kv.Value};uid=sa;pwd=yzhh2007;database={kv.Key}";
                 string cmd = @"SELECT * FROM [dbo].[settle_file_history] where settle_date BETWEEN @start_time and @end_time and station_id='ALL';
                                SELECT * FROM [dbo].[daily_cashcard_collection] where trans_date=@collection_date;
