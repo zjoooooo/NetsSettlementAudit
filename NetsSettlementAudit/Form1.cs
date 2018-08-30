@@ -96,15 +96,15 @@ namespace NetsSettlementAudit
             string CommandText = null;
             if (batchname.Equals("Null") || batchname.Equals(""))
             {
-                 CommandText = $"select name,ip,batch from Whole where valid=1 and name='{carpark}'";
+                CommandText = $"select name,ip,batch from Whole where valid=1 and name='{carpark}'";
             }
             else if (batchname.Equals("All"))
             {
-                 CommandText = $"select name,ip,batch from Whole where valid=1";
+                CommandText = $"select name,ip,batch from Whole where valid=1";
             }
             else
             {
-                 CommandText = $"select name,ip,batch from Whole where valid=1 and batch='{batchname}'";
+                CommandText = $"select name,ip,batch from Whole where valid=1 and batch='{batchname}'";
             }
             string constr = "Data Source=172.16.1.89;uid=secure;pwd=weishenme;database=carpark";
 
@@ -140,7 +140,7 @@ namespace NetsSettlementAudit
                 }
             }
 
-            string cmd_ =    "SELECT* FROM [dbo].[ServerDetails]";
+            string cmd_ = "SELECT* FROM [dbo].[ServerDetails]";
             string constr_ = "Data Source=172.16.1.89;uid=secure;pwd=weishenme;database=NetsSettlementAudit";
 
             DataSet ds_ = null;
@@ -307,12 +307,13 @@ namespace NetsSettlementAudit
                 LogClass.WriteLog("Process consolidated report ok.");
                 command = null;
                 connection.Close();
+                return true;
             }
             catch (Exception e1)
             {
                 LogClass.WriteLog($"find error to process consolidated report,{e1.ToString()}");
+                return false;
             }
-            return true;
         }
 
 
@@ -322,7 +323,8 @@ namespace NetsSettlementAudit
             SqlConnection connection = new SqlConnection($"Initial Catalog={capark};data source={ip},1433;user id=sa; password=yzhh2007; Network Library=DBMSSOCN;");
             try
             {
-                SqlCommand command = new SqlCommand {
+                SqlCommand command = new SqlCommand
+                {
                     CommandText = "sj_AddCashcardCollection",
                     CommandType = CommandType.StoredProcedure
                 };
@@ -341,16 +343,17 @@ namespace NetsSettlementAudit
                 LogClass.WriteLog("Process cashcard report ok.");
                 command = null;
                 connection.Close();
+                return true;
             }
             catch (Exception e1)
             {
                 LogClass.WriteLog($"find error to process cashcard report,{e1.ToString()}");
+                return false;
             }
-            return true;
         }
 
         //Add LTA Report.
-        private bool StoredProcedureSjAddLTACollection(string capark,string ip,string DateFrom, string DateTo)
+        private bool StoredProcedureSjAddLTACollection(string capark, string ip, string DateFrom, string DateTo)
         {
             SqlConnection connection = new SqlConnection($"Initial Catalog={capark};data source={ip},1433;user id=sa; password=yzhh2007; Network Library=DBMSSOCN;");
             try
@@ -375,28 +378,31 @@ namespace NetsSettlementAudit
                 LogClass.WriteLog("Process LTA report ok.");
                 command = null;
                 connection.Close();
+                return true;
             }
             catch (Exception e1)
             {
                 LogClass.WriteLog($"find error to process LTA report,{e1.ToString()}");
+                return false;
             }
-            return true;
         }
-       
+
         private void ReadDataFromPMS()
         {
             SettleFileBatch.Clear();
             string constr_server = "Data Source=172.16.1.89;uid=secure;pwd=weishenme;database=NetsSettlementAudit";
-            string start_time = DateTime.Now.ToString("yyyy-MM-dd 00:00:00");
-            string end_time = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd 00:00:00");
-            string collection_date = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd 00:00:00");
+            DateTime dt = DateTime.Now;
+            string start_time = dt.ToString("yyyy-MM-dd 00:00:00");
+            string end_time = dt.AddDays(1).ToString("yyyy-MM-dd 00:00:00");
+            string collection_date = dt.AddDays(-1).ToString("yyyy-MM-dd 00:00:00");
+            string P_date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
             foreach (KeyValuePair<string, string> kv in carparklist)
             {
                 LogClass.WriteLog($"=========={kv.Key}==========");
-                string date = DateTime.Now.AddDays(-1).ToString("yyyyMMdd");
-                StoredProcedureSpProcessConsolidated(kv.Key, kv.Value, date, date);
-                StoredProcedureSjAddCashCardCollection(kv.Key, kv.Value, date, date);
-                StoredProcedureSjAddLTACollection(kv.Key, kv.Value, date, date);
+                if (!((StoredProcedureSpProcessConsolidated(kv.Key, kv.Value, P_date, P_date)) && (StoredProcedureSjAddCashCardCollection(kv.Key, kv.Value, P_date, P_date)) && (StoredProcedureSjAddLTACollection(kv.Key, kv.Value, P_date, P_date))))
+                {
+                    continue;
+                }
                 string constr = $"Data Source={kv.Value};uid=sa;pwd=yzhh2007;database={kv.Key}";
                 string cmd = @"SELECT * FROM [dbo].[settle_file_history] where settle_date BETWEEN @start_time and @end_time and station_id='ALL';
                                SELECT * FROM [dbo].[daily_cashcard_collection] where trans_date=@collection_date;
@@ -479,10 +485,10 @@ namespace NetsSettlementAudit
 
 
                         }
-                        catch(SqlException sqle)
+                        catch (SqlException sqle)
                         {
-                            
-                        
+
+
 
                         }
                     }
@@ -538,7 +544,7 @@ namespace NetsSettlementAudit
                             double settle_amt = Convert.ToDouble(dr["settle_amt"].ToString());
                             string trans_date = dr["trans_date"].ToString();
 
-                            
+
                             bool flag_cpt = false;
                             bool flag_chu = false;
                             if (trans_type.Equals("1") && (conso_amt > 0))    //1 CPT Consolidated.
@@ -618,7 +624,7 @@ namespace NetsSettlementAudit
                                         }
                                     }
 
- 
+
 
 
 
@@ -756,7 +762,7 @@ namespace NetsSettlementAudit
                     if (CheckFileUpload(fileName, ServerIP))
                     {
                         //File upload ok at Nets Server
-                        LogClass.WriteLog($"{fileName} {Filelocation} Upload OK At Server {ServerIP}");                       
+                        LogClass.WriteLog($"{fileName} {Filelocation} Upload OK At Server {ServerIP}");
                     }
                     else
                     {
@@ -765,7 +771,7 @@ namespace NetsSettlementAudit
                         AlarmTxt($"{fileName} {Filelocation} Never Upload At Server {ServerIP}");
                     }
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     LogClass.WriteLog($"Found Error When Check On Server {ServerIP}, {e.ToString()}");
                     AlarmTxt($"Found Error When Check On Server {ServerIP}");
@@ -825,7 +831,7 @@ namespace NetsSettlementAudit
                 {
                     LogClass.WriteLog("Fail To Read FileName " + e.ToString());
                     return result;
-                }                
+                }
             }
 
             try
